@@ -37,6 +37,23 @@ sim, isso é bem legal, tipo o excel.
 - ambiente virtual recomendado;
 - dependências listadas em `requirements.txt` e `requirements-dev.txt`para quando precisarmos empacotar e criar um executável.
 
+## Bibliotecas utilizadas e para que servem
+
+Aqui vai um resumo simples do que cada biblioteca está fazendo no projeto:
+
+| Biblioteca | Para que foi usada | O que faz no projeto |
+| --- | --- | --- |
+| `PySide6` | Interface gráfica do programa | Cria a janela do aplicativo, botões, telas, menus e formulários para o usuário interagir. É a base da interface desktop. |
+| `pandas` | Manipular dados e tabelas | Lê as planilhas, limpa colunas, valida números, organiza os dados, calcula médias e prepara tudo para análise. É a biblioteca principal do projeto. |
+| `plotly` | Gerar gráficos | Cria gráficos de barras, histogramas, boxplot e evolução por período para visualizar o desempenho das turmas. |
+| `openpyxl` | Ler arquivos Excel `.xlsx` | Permite abrir planilhas modernas do Excel no processo de importação. |
+| `xlrd` | Ler arquivos Excel antigos `.xls` | Mantém compatibilidade com arquivos mais antigos em formato `.xls`. |
+| `odfpy` | Ler planilhas ODS | Permite importar arquivos do LibreOffice/ODF, além de CSV e Excel. |
+| `pytest` | Testes automatizados | Ajuda a verificar se as partes do código continuam funcionando corretamente durante o desenvolvimento. |
+| `pyinstaller` | Empacotar o app | Permite transformar o projeto em um executável pronto para rodar sem precisar do Python instalado. |
+
+Em resumo: `PySide6` cuida da parte visual, `pandas` cuida dos dados, `plotly` cuida dos gráficos e as bibliotecas de Excel/ODS ajudam a importar arquivos. O restante são ferramentas de apoio para testes e distribuição do programa.
+
 ## Instalação
 
 Clone o repositório:
