@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8.0
+# Empacotamento futuro (etapas 11 e 12)
+pyinstaller>=6.0
