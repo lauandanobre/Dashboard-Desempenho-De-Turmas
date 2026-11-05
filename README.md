@@ -394,9 +394,3 @@ A pasta `installer/` é reservada para um instalador local (por exemplo, com Inn
 ## 📄 Licença
 
 Distribuído sob a licença **MIT**. Veja o arquivo [`LICENSE`](LICENSE).
-
-<div align="center">
-
-Feito com ♥ por estudantes da UFABC para o cursinho.
-
-</div>
