@@ -1,2 +1,3 @@
-Coloque aqui `icon.ico` (ícone do aplicativo). Se existir, a janela o usa automaticamente.
-O ícone é recurso da etapa de distribuição (PyInstaller / Inno Setup).
+- `modelo_planilha_turmas.xlsx` — planilha vazia no padrão do projeto (gerada por `scripts/gerar_modelo.py`).
+- `exemplo_ficticio.csv` / `.xlsx` — dados 100% fictícios no layout do sistema de correção (`scripts/gerar_dados_ficticios.py`).
+- `icon.ico` (opcional) — se existir, a janela usa como ícone.

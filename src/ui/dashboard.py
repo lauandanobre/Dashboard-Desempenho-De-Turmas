@@ -10,14 +10,16 @@ from PySide6.QtWidgets import (
 )
 
 from src.charts import chart_builder as cb
+from src.services import item_service
 from src.models.analysis_result import Filters
 from src.models.session import Session
 from src.services import analysis_service as an
 from src.ui.chart_view import ChartView
 from src.utils.formatting import format_number
 
-TAB_BAR, TAB_HIST, TAB_BOX, TAB_AREA, TAB_EVOL = range(5)
-TAB_TITLES = ["Médias por turma", "Distribuição", "Dispersão por turma", "Comparação por área", "Evolução"]
+TAB_BAR, TAB_HIST, TAB_BOX, TAB_AREA, TAB_EVOL, TAB_ATT, TAB_Q = range(7)
+TAB_TITLES = ["Médias por turma", "Distribuição", "Dispersão por turma", "Comparação por área", "Evolução",
+              "Presença", "Questões mais erradas"]
 
 
 class KpiCard(QFrame):
@@ -52,6 +54,8 @@ class DashboardPage(QWidget):
         self._summary = None
         self._overall_by_area: dict[str, float] = {}
         self._figures: dict[int, object] = {}
+        self._att = None
+        self._qstats = None
         self._stale: set[int] = set()
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -69,8 +73,9 @@ class DashboardPage(QWidget):
         w = QWidget()
         title = QLabel("Nenhum arquivo carregado")
         title.setObjectName("emptyTitle")
-        hint = QLabel("Importe uma planilha com as colunas: turma, id, exatas (% de acertos) e humanas (% de acertos).\n"
-                      "Formatos aceitos: .xlsx, .xls, .ods, .csv e .txt. Tudo é processado neste computador.")
+        hint = QLabel("Importe a planilha no padrão do projeto (assets/modelo_planilha_turmas.xlsx) ou a exportação do "
+                      "sistema de correção em .xlsx/.csv.\nO app reconhece o layout sozinho e converte. "
+                      "Formatos: .xlsx, .xls, .ods, .csv, .txt. Tudo é processado neste computador.")
         hint.setObjectName("muted")
         btn = QPushButton("Importar planilha")
         btn.setObjectName("primary")
@@ -88,8 +93,9 @@ class DashboardPage(QWidget):
         w = QWidget()
         self.kpi_turmas, self.kpi_records = KpiCard("Turmas encontradas"), KpiCard("Registros analisados")
         self.kpi_mean, self.kpi_best = KpiCard("Média geral"), KpiCard("Maior média entre turmas")
+        self.kpi_att = KpiCard("Presença")
         kpis = QHBoxLayout()
-        for k in (self.kpi_turmas, self.kpi_records, self.kpi_mean, self.kpi_best):
+        for k in (self.kpi_turmas, self.kpi_records, self.kpi_att, self.kpi_mean, self.kpi_best):
             kpis.addWidget(k, 1)
 
         # filtros
@@ -208,6 +214,24 @@ class DashboardPage(QWidget):
         unit = s.unit
         self.kpi_turmas.set(None, str(stats.n_turmas))
         self.kpi_records.set(None, str(stats.n_records))
+        ds = s.dataset
+        self._att = self._qstats = None
+        if ds is not None:
+            alunos = ds.alunos
+            f = self._filters()
+            if f.turmas is not None:
+                alunos = alunos[alunos["turma"].isin(f.turmas)]
+            if f.period is not None:
+                alunos = alunos[alunos["simulado"] == f.period]
+            self._att = an.attendance_table(alunos)
+            tot, pres = int(self._att["matriculados"].sum()), int(self._att["presentes"].sum())
+            self.kpi_att.set(None, f"{pres} de {tot} ({pres / tot:.0%})" if tot else "—")
+            multi = ds.alunos["simulado"].nunique() > 1
+            if ds.has_items and not (multi and f.period is None):
+                self._qstats = item_service.question_stats(ds.alunos, ds.erros, ds.gabarito, ds.n_linguagens,
+                                                           ds.n_questoes, ds.anuladas, f.turmas, f.period)
+        else:
+            self.kpi_att.set(None, "—")
         self.kpi_mean.set(f"Média geral — {area or 'todas as áreas'}",
                           "—" if stats.mean is None else format_number(stats.mean) + (unit if unit else ""))
         self.kpi_best.set(None, "—" if stats.best_turma is None else
@@ -222,9 +246,13 @@ class DashboardPage(QWidget):
         self._overall_by_area = data.groupby("area")["valor"].mean().to_dict()
         enabled = {TAB_BAR: True, TAB_HIST: True, TAB_BOX: True,
                    TAB_AREA: data["area"].nunique() >= 2,
-                   TAB_EVOL: data["periodo"].nunique() >= 2}
+                   TAB_EVOL: data["periodo"].nunique() >= 2,
+                   TAB_ATT: self._att is not None and not self._att.empty,
+                   TAB_Q: self._qstats is not None and not self._qstats.empty}
         for i, ok in enabled.items():
             self.tabs.setTabEnabled(i, ok)
+        self.tabs.setTabToolTip(TAB_Q, "Disponível quando a planilha tem a lista de erros (aba Erros ou exportação do "
+                                       "sistema). Com vários simulados, escolha um no filtro de período.")
         if not enabled.get(self.tabs.currentIndex(), False):
             self.tabs.setCurrentIndex(TAB_BAR)
         self._stale = {i for i, ok in enabled.items() if ok}
@@ -242,6 +270,10 @@ class DashboardPage(QWidget):
             fig = cb.boxplot(d, vr, unit)
         elif index == TAB_AREA:
             fig = cb.area_comparison(self._summary, vr, unit)
+        elif index == TAB_ATT:
+            fig = cb.attendance(self._att)
+        elif index == TAB_Q:
+            fig = cb.question_ranking(self._qstats)
         else:
             fig = cb.evolution(d, vr, unit)
         self._figures[index] = fig

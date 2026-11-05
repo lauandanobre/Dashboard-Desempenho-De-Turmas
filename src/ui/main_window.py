@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 
 from src.models.session import Session
 from src.services.validation_service import DataValidationError, build_clean_dataset
+from src.ui.alerts_view import AlertsPage
 from src.ui.dashboard import DashboardPage
 from src.ui.data_view import DataPage
 from src.ui.dialogs import ImportDialog, QualityDialog
@@ -46,12 +47,13 @@ class MainWindow(QMainWindow):
         self.nav = QListWidget()
         self.nav.setObjectName("nav")
         self.nav.setFixedWidth(180)
-        self.nav.addItems(["Dashboard", "Dados", "Relatórios"])
+        self.nav.addItems(["Dashboard", "Dados", "Alertas", "Relatórios"])
         self.dashboard = DashboardPage(runtime_dir)
         self.data_page = DataPage()
+        self.alerts = AlertsPage()
         self.reports = ReportsPage()
         self.stack = QStackedWidget()
-        for page in (self.dashboard, self.data_page, self.reports):
+        for page in (self.dashboard, self.data_page, self.alerts, self.reports):
             self.stack.addWidget(page)
         self.nav.currentRowChanged.connect(self.stack.setCurrentIndex)
         self.nav.setCurrentRow(0)
@@ -107,11 +109,12 @@ class MainWindow(QMainWindow):
         if quality.has_errors:
             return
         self.session = Session(source_path=Path(path), table=dialog.table, mapping=dialog.mapping,
-                               config=dialog.config, long=long, quality=quality)
+                               config=dialog.config, long=long, quality=quality, dataset=dialog.dataset)
         self.file_label.setText(f"Arquivo: {Path(path).name}" +
                                 (f" · aba: {dialog.table.sheet}" if dialog.table.sheet else ""))
         self.dashboard.set_session(self.session)
         self.data_page.set_session(self.session)
+        self.alerts.set_session(self.session)
         self.reports.set_session(self.session)
         self.nav.setCurrentRow(0)
 

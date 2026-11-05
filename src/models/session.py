@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.models.dataset import Dataset
+
 from src.models.analysis_result import (
     AttentionCriteria, ColumnMapping, ImportedTable, QualityReport, ValidationConfig,
 )
@@ -20,6 +22,7 @@ class Session:
     long: pd.DataFrame                      # dados tratados (formato longo)
     quality: QualityReport
     criteria: AttentionCriteria = field(default_factory=AttentionCriteria)
+    dataset: Dataset | None = None          # dados padronizados (presença, questões); None em planilhas genéricas
     unexported: bool = True                 # há resultados ainda não exportados?
 
     @property

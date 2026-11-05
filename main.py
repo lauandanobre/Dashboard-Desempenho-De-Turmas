@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 from src.utils.logging_config import log_unhandled, logger, setup_logging
+from src.utils.paths import resource_path
 
 
 def _fatal(message: str) -> None:
@@ -38,6 +39,10 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Métricas das Turmas")
     app.setStyleSheet(QSS)
+    icon_path = resource_path("assets/icon.ico")
+    if icon_path.exists():
+        from PySide6.QtGui import QIcon
+        app.setWindowIcon(QIcon(str(icon_path)))
 
     # Pasta temporária (só gráficos locais); removida ao sair.
     runtime_dir = Path(tempfile.mkdtemp(prefix="metricas_"))
