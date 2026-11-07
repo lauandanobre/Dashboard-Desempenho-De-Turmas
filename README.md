@@ -73,43 +73,47 @@ O **Métricas das Turmas** lê a planilha, confere os dados e mostra o desempenh
 
 ## 🚀 Guia rápido para professores
 
-> Você só precisa fazer a **instalação uma vez**. Depois, é abrir o programa e importar a planilha.
+Há duas formas de instalar. **A Opção 1 é a mais fácil e não exige Python nem VS Code.**
 
-### Passo 1 — Instalar o Python (uma vez)
+### Opção 1 — Instalador pronto (recomendado)
+
+1. Abra a página de versões: <https://github.com/lauandanobre/Dashboard-Desempenho-De-Turmas/releases>
+2. Na versão mais recente, em **Assets**, baixe **`Instalador_Metricas_das_Turmas.exe`**.
+3. Dê dois cliques, avance (*Avançar → Instalar → Concluir*) e marque **"Criar atalho na área de trabalho"**. Não pede senha de administrador.
+4. Abra o programa pelo atalho **Metricas das Turmas**. Para testar, importe o `exemplo_ficticio.xlsx` da pasta **Documentos\Metricas das Turmas** (o instalador copia para lá também o `modelo_planilha_turmas.xlsx`).
+
+> ⚠️ **Aviso do Windows:** como o instalador não tem assinatura digital paga, o Windows pode mostrar *"O Windows protegeu seu computador"*. Clique em **Mais informações → Executar assim mesmo**. Alguns antivírus também podem estranhar o arquivo; ele é seguro e o código-fonte está neste repositório.
+>
+> Prefere sem instalar? Na mesma página, baixe **`Metricas_das_Turmas_portatil.zip`**, extraia e abra `MetricasDasTurmas.exe`.
+>
+> O primeiro uso pode demorar alguns segundos para abrir; o programa é grande (~400–700 MB instalado) porque leva junto o motor dos gráficos.
+
+### Opção 2 — Pelo código-fonte (precisa do Python)
+
+Use esta se não houver instalador publicado ainda. Você só precisa fazer a **instalação uma vez**.
+
+#### Passo 1 — Instalar o Python (uma vez)
 
 1. Acesse [python.org/downloads](https://www.python.org/downloads/) e baixe o **Python 3.12** (ou mais novo; precisa ser 3.10 ou superior).
 2. Abra o instalador e, **na primeira tela, marque a caixa “Add Python to PATH”**. Depois clique em *Install Now*.
 
-### Passo 2 — Baixar o programa
+#### Passo 2 — Baixar o programa
 
 1. Abra a página do projeto no GitHub: <https://github.com/lauandanobre/Dashboard-Desempenho-De-Turmas>
 2. Clique no botão verde **Code → Download ZIP**.
 3. Extraia o ZIP (clique com o botão direito → *Extrair tudo*) em uma pasta fácil de achar, como `C:\Metricas-Turmas`.
 
-### Passo 3 — Instalar as bibliotecas (uma vez)
+#### Passo 3 — Instalar as bibliotecas (uma vez)
 
-1. Abra a pasta extraída até ver o arquivo `main.py`.
-2. Clique na barra de endereço da pasta, digite `powershell` e aperte **Enter**. Abre uma janela azul/preta.
-3. Cole os comandos abaixo, **um de cada vez**, apertando Enter (o segundo e o terceiro demoram alguns minutos):
+Na pasta extraída, dê **dois cliques em `instalar.bat`** e espere aparecer **PRONTO!** (leva alguns minutos). Para conferir se nenhum arquivo ficou faltando, use antes **`verificar_projeto.bat`**.
 
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
+#### Passo 4 — Abrir o programa (sempre que for usar)
 
-### Passo 4 — Abrir o programa (sempre que for usar)
+Dê **dois cliques em `abrir.bat`**. A janela do programa abre. Para **testar sem dados reais**, clique em **Importar planilha** e escolha `assets\exemplo_ficticio.xlsx`.
 
-Na mesma pasta, abra o PowerShell e rode:
+> Prefere o terminal? Dentro da pasta: `python -m venv .venv`, `.venv\Scripts\activate`, `pip install -r requirements.txt` e `python main.py`.
 
-```powershell
-.venv\Scripts\activate
-python main.py
-```
-
-A janela do programa abre. Para **testar sem dados reais**, clique em **Importar planilha** e escolha `assets\exemplo_ficticio.xlsx`.
-
-### Passo 5 — Usar com a planilha do simulado
+### Usar com a planilha do simulado (vale para as duas opções)
 
 1. No sistema de correção (Google Sheets), vá em **Arquivo → Fazer download → Microsoft Excel (.xlsx)**.
    **⚠ Nunca baixe em PDF:** o PDF corta a coluna “Questões Erradas” e a análise por questão fica errada.
@@ -117,8 +121,6 @@ A janela do programa abre. Para **testar sem dados reais**, clique em **Importar
 3. O programa mostra o que reconheceu e o que corrigiu. Confira o resumo e confirme.
 4. Navegue pelas abas **Dashboard**, **Dados**, **Alertas** e **Relatórios**.
 5. Em **Relatórios**, gere o **PDF** para compartilhar com a coordenação.
-
-> 💡 **Dica:** a pasta já traz o arquivo `abrir.bat`. Depois da instalação, basta dar **dois cliques nele** para abrir o programa (sem digitar comandos).
 
 ---
 
@@ -141,7 +143,7 @@ O programa reconhece sozinho as colunas `ID, TURMA, Respostas, Acertos, Percentu
 
 ### 2. Modelo do projeto (para digitar ou arquivar)
 
-Use `assets/modelo_planilha_turmas.xlsx`. Na aba **Alunos**, só as colunas em **azul** são digitadas; as **cinzas** são fórmulas.
+Use `assets/modelo_planilha_turmas.xlsx` (se instalou pelo instalador, ele está em **Documentos\Metricas das Turmas**). Na aba **Alunos**, só as colunas em **azul** são digitadas; as **cinzas** são fórmulas.
 
 | Coluna | Digitar? | Regra |
 |---|:---:|---|
@@ -208,7 +210,8 @@ Pontos para **conferir antes de tirar conclusões**. Não são julgamentos sobre
 | `python` não é reconhecido | Reinstale o Python marcando **“Add Python to PATH”**, ou use `py` no lugar de `python`. |
 | Erro de “execução de scripts desabilitada” ao ativar o ambiente | No PowerShell, rode uma vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` e responda `S`. |
 | `ModuleNotFoundError: PySide6` (ou pandas) | O ambiente não está ativo. Rode `.venv\Scripts\activate` e confirme que aparece `(.venv)` no começo da linha. |
-| Erro de sintaxe com `\|` ao abrir | Python antigo. Confira com `python --version`: precisa ser **3.10 ou superior**. |
+| Erro estranho logo ao abrir (modo código-fonte) | Pode ser Python antigo. Confira com `python --version`: precisa ser **3.10 ou superior**. |
+| “O Windows protegeu seu computador” ao abrir o instalador | Clique em **Mais informações → Executar assim mesmo** (o instalador não tem assinatura digital paga). |
 | A janela não aparece | Olhe a barra de tarefas: ela pode abrir atrás de outras janelas. |
 | “Arquivo em uso” ao exportar | Feche o arquivo no Excel e exporte de novo. |
 | “Layout não reconhecido” / “Faltam colunas” | Use o modelo `assets/modelo_planilha_turmas.xlsx` ou o mapeamento manual de colunas na importação. |
@@ -247,7 +250,7 @@ No VS Code: instale a extensão **Python**, use `Ctrl+Shift+P → Python: Select
 | `xlrd` | Leitura de `.xls` antigos. |
 | `odfpy` | Leitura de `.ods` (LibreOffice). |
 | `pytest` | Testes automatizados. |
-| `pyinstaller` | Empacotar em executável (futuro). |
+| `pyinstaller` | Empacota o programa em executável (`.exe`) para os professores. |
 
 Tudo é gratuito: PySide6 (LGPL), pandas e openpyxl (BSD/MIT), Plotly (MIT).
 
@@ -272,10 +275,14 @@ A interface chama os serviços; os serviços ficam responsáveis pela lógica de
 
 ```text
 main.py                         ponto de entrada
-abrir.bat                       atalho para abrir o programa no Windows
+abrir.bat / instalar.bat        abrir e instalar o programa no Windows (modo código-fonte)
+verificar_projeto.bat           confere se todos os arquivos estão presentes
+build_windows.bat               gera o executável (.exe)
+MetricasTurmas.spec             receita do PyInstaller
+.github/workflows/              testes automáticos e build do instalador
 assets/                         modelo_planilha_turmas.xlsx, exemplo_ficticio.(csv|xlsx)
 scripts/                        gerar_modelo.py, gerar_dados_ficticios.py, converter_planilha.py
-installer/                      (futuro) instalador local
+installer/                      instalador.iss (Inno Setup)
 src/
   models/                       dataset, session, resultados e configurações
   services/
@@ -309,15 +316,16 @@ python scripts/converter_planilha.py in.xlsx out.xlsx
 python -m pytest -q                         # testes
 ```
 
-### Empacotamento (futuro)
+### Gerar o executável e o instalador
 
-Para gerar um executável que roda sem Python instalado:
+**No seu computador (Windows):** dê dois cliques em `build_windows.bat`. Ele cria o ambiente, roda os testes e gera `dist\MetricasDasTurmas\MetricasDasTurmas.exe`. Para criar também o instalador, instale o [Inno Setup 6](https://jrsoftware.org/isdl.php) (gratuito), abra `installer\instalador.iss` e aperte **F9**.
 
-```bash
-pyinstaller --noconsole --name "Métricas das Turmas" main.py
-```
+**Pelo GitHub (sem instalar nada):**
 
-A pasta `installer/` é reservada para um instalador local (por exemplo, com Inno Setup). Se existir `assets/icon.ico`, a janela o usa como ícone.
+1. Vá em **Actions → Gerar executavel e instalador (Windows) → Run workflow**. O resultado fica em *Artifacts*.
+2. Para **publicar uma versão** para os professores, crie uma tag: na página do repositório, **Releases → Draft a new release → Choose a tag**, digite `v1.0.0`, e publique. O GitHub gera o instalador e o `.zip` portátil e os anexa à versão automaticamente.
+
+Os testes também rodam sozinhos a cada *push* (workflow **Testes**). A receita do PyInstaller está em `MetricasTurmas.spec`; o ícone é `assets/icon.ico` (substitua pelo do cursinho quando houver).
 
 ### Como contribuir
 
@@ -358,17 +366,9 @@ A pasta `installer/` é reservada para um instalador local (por exemplo, com Inn
 
 ## 👥 Equipe
 
-| Nome | Responsabilidade |
-|---|---|
-| **[Nome 1]** | Coordenação, arquitetura e integração (`src/models/`, `main.py`, `src/ui/main_window.py`) |
-| **[Nome 2]** | Importação e validação (`import_service`, `ingest_service`, `validation_service`) |
-| **[Nome 3]** | Análise de dados (`analysis_service`, `item_service`) |
-| **[Nome 4]** | Interface do usuário (`src/ui/`) |
-| **[Nome 5]** | Gráficos, exportação e empacotamento (`src/charts/`, `export_service`, `installer/`) |
+**[Nome da equipe]**: Gabriely Alves · Lauanda Santos · Monyse Andrade · Lars Tatebe · Felipe Pellizzari
 
-**Orientação / cursinho:** [nome do(a) professor(a) ou coordenação] · **Instituição:** Universidade Federal do ABC (UFABC)
-
-> ✏️ Substitua os campos entre colchetes pelos nomes e papéis reais do grupo.
+**Orientação / cursinho:** Joeldson de Souza Gama · **Instituição:** Universidade Federal do ABC (UFABC)
 
 ---
 
@@ -379,15 +379,16 @@ A pasta `installer/` é reservada para um instalador local (por exemplo, com Inn
 - O ranking de questões depende de a planilha trazer a lista completa de erros. Em PDF ela vem cortada.
 - Como a planilha lista só as questões **erradas**, questões em branco e acertos não são distinguíveis em alunos que não responderam tudo.
 - Com poucos alunos por turma (< 10), o programa não avalia a turma de propósito.
-- O significado dos códigos de turma (`T1NOTSA` etc.) e do rótulo `S2D1` do simulado vem do nome dos arquivos; confirme com a coordenação.
+- O significado dos códigos de turma (`T1NOTSA` etc.) deve ser confirmado com a coordenação. O rótulo do simulado (`S2D1`) é deduzido do nome do arquivo quando ele segue o padrão `S#D#`; senão, a coluna `simulado` fica vazia.
 
 **Próximos passos**
 
-- [ ] Executável com instalador (PyInstaller + Inno Setup), para não exigir Python.
-- [ ] Ícone e identidade visual do cursinho em `assets/`.
+- [x] Receita do executável e do instalador (PyInstaller + Inno Setup) prontas.
+- [ ] Publicar a primeira versão (*Release*) e validar o instalador no Windows.
+- [ ] Trocar o ícone provisório (`assets/icon.ico`) pela identidade visual do cursinho.
 - [ ] Capturas de tela na seção de apresentação (`docs/img/`).
 - [ ] Validar exportação de gráficos em PNG no macOS e no Linux.
-- [ ] Integração contínua (GitHub Actions) rodando os testes a cada *push*.
+- [x] Integração contínua (GitHub Actions) rodando os testes a cada *push*.
 
 ---
 

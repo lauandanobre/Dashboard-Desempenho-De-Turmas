@@ -152,3 +152,20 @@ pip install -r requirements.txt
 | `melhorias.patch` | Diferença entre a versão antiga e a atual, para aplicar com `git apply` |
 | `modelo_planilha_turmas.xlsx` | Planilha vazia no padrão do projeto |
 | `s2d1_epufabc_2026_padronizado.xlsx` | Dados reais do simulado já convertidos (**uso interno; não compartilhar nem versionar**) |
+
+## 11. Adendo — Executável e instalador (novo)
+
+Para os professores não precisarem de Python nem de VS Code, foram adicionados:
+
+| Arquivo | Função |
+|---|---|
+| `MetricasTurmas.spec` | Receita do PyInstaller (leva junto assets, ícone e o motor offline dos gráficos) |
+| `build_windows.bat` | Gera o `.exe` com dois cliques (cria ambiente, roda testes e empacota) |
+| `installer/instalador.iss` | Instalador "Avançar → Instalar" (Inno Setup), sem exigir senha de administrador |
+| `.github/workflows/build-windows.yml` | Gera instalador e `.zip` portátil no GitHub e publica em *Releases* ao criar uma tag `v*` |
+| `.github/workflows/tests.yml` | Roda os testes automaticamente a cada *push* (Windows e Linux) |
+| `assets/icon.ico` | Ícone provisório (trocar pelo do cursinho) |
+
+**Verificado:** o build foi feito e o executável abriu sem erro **no Linux**, incluindo assets e `plotly.min.js` embutidos. **Não verificado:** o build e a execução no **Windows**, o instalador (`.iss`) e os workflows do GitHub; só serão confirmados na primeira execução. O Windows pode exibir o aviso do SmartScreen por o instalador não ser assinado. Tamanho esperado: 400–700 MB instalado.
+
+**Facilitadores de instalação (modo código-fonte):** `instalar.bat` (verifica o Python 3.10+, cria o ambiente e instala as bibliotecas), `abrir.bat` (abre o programa), `verificar_projeto.bat` (confere se nenhum arquivo ficou faltando após extrair o zip) e `LEIA-ME-PRIMEIRO.txt`.

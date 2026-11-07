@@ -1,0 +1,71 @@
+$ErrorActionPreference = "SilentlyContinue"
+$arquivos = @(
+    ".github\workflows\build-windows.yml",
+    ".github\workflows\tests.yml",
+    ".gitignore",
+    ".vscode\launch.json",
+    "LICENSE",
+    "MetricasTurmas.spec",
+    "README.md",
+    "abrir.bat",
+    "assets\README.md",
+    "assets\exemplo_ficticio.csv",
+    "assets\exemplo_ficticio.xlsx",
+    "assets\icon.ico",
+    "assets\modelo_planilha_turmas.xlsx",
+    "build_windows.bat",
+    "docs\RELATORIO_DE_MUDANCAS.md",
+    "instalar.bat",
+    "installer\README.md",
+    "installer\instalador.iss",
+    "main.py",
+    "requirements-dev.txt",
+    "requirements.txt",
+    "scripts\converter_planilha.py",
+    "scripts\gerar_dados_ficticios.py",
+    "scripts\gerar_modelo.py",
+    "src\__init__.py",
+    "src\charts\__init__.py",
+    "src\charts\chart_builder.py",
+    "src\models\__init__.py",
+    "src\models\analysis_result.py",
+    "src\models\dataset.py",
+    "src\models\session.py",
+    "src\services\__init__.py",
+    "src\services\analysis_service.py",
+    "src\services\demo_data.py",
+    "src\services\export_service.py",
+    "src\services\import_service.py",
+    "src\services\ingest_service.py",
+    "src\services\item_service.py",
+    "src\services\schema.py",
+    "src\services\standard_workbook.py",
+    "src\services\validation_service.py",
+    "src\ui\__init__.py",
+    "src\ui\alerts_view.py",
+    "src\ui\chart_view.py",
+    "src\ui\dashboard.py",
+    "src\ui\data_view.py",
+    "src\ui\dialogs.py",
+    "src\ui\main_window.py",
+    "src\ui\reports.py",
+    "src\ui\styles.py",
+    "src\utils\__init__.py",
+    "src\utils\formatting.py",
+    "src\utils\logging_config.py",
+    "src\utils\paths.py",
+    "tests\__init__.py",
+    "tests\conftest.py",
+    "tests\test_ingest.py",
+    "tests\test_items_and_analysis.py",
+    "main.py"
+)
+Set-Location $PSScriptRoot
+$faltam = @($arquivos | Where-Object { -not (Test-Path $_) } | Select-Object -Unique)
+if ($faltam.Count -eq 0) {
+    Write-Host "TUDO CERTO: os $($arquivos.Count) arquivos do projeto estao presentes." -ForegroundColor Green
+} else {
+    Write-Host "FALTAM $($faltam.Count) arquivo(s):" -ForegroundColor Red
+    $faltam | ForEach-Object { Write-Host "  - $_" }
+    Write-Host "Extraia o zip de novo com 'Extrair tudo' numa pasta vazia." -ForegroundColor Yellow
+}
