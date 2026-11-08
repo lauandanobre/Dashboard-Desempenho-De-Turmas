@@ -18,6 +18,8 @@ class ColumnMapping:
     value_columns: tuple[str, ...]          # ex.: ("exatas", "humanas")
     id_column: str | None = None
     period_column: str | None = None
+    presence_column: str | None = None      # coluna SIM/NAO: "NAO" = ausente (não entra em nenhuma média)
+    area_labels: tuple[tuple[str, str], ...] = ()   # (coluna, nome exibido), ex.: ("pct_humanas", "Humanas")
 
 
 @dataclass(frozen=True)
@@ -28,6 +30,7 @@ class ValidationConfig:
     max_value: float | None = 100.0
     scale: float = 1.0                      # 100.0 se os valores vierem em fração (0-1)
     remove_duplicate_ids: bool = False
+    zero_is_absent: bool = False            # planilhas sem coluna de presença: nota 0 = aluno ausente
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,8 @@ class AttentionCriteria:
 
     below_overall_by: float | None = 5.0    # pontos abaixo da média geral da área
     absolute_minimum: float | None = None   # média mínima absoluta
+    min_records: int = 10                   # turmas com menos registros não são avaliadas (amostra pequena)
+    require_significance: bool = True       # exige diferença maior que a margem de erro (95%)
 
 
 @dataclass(frozen=True)
@@ -71,6 +76,7 @@ class QualityReport:
     rows_analyzed: int = 0
     values_in: int = 0
     values_used: int = 0
+    n_absent: int = 0                       # linhas de alunos ausentes (excluídas das médias)
     issues: list[QualityIssue] = field(default_factory=list)
 
     @property

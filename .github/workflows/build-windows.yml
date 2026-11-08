@@ -1,0 +1,44 @@
+name: Gerar executavel e instalador (Windows)
+
+on:
+  workflow_dispatch:          # botao "Run workflow" na aba Actions
+  push:
+    tags: ["v*"]              # ao criar uma versao, ex.: v1.0.0
+
+permissions:
+  contents: write             # necessario para publicar em Releases
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: pyinstaller --noconfirm MetricasTurmas.spec
+      - name: Instalar Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Compilar instalador
+        shell: pwsh
+        run: |
+          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "0.0.0-dev" }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer\instalador.iss
+      - name: Compactar versao portatil
+        shell: pwsh
+        run: Compress-Archive -Path dist\MetricasDasTurmas -DestinationPath Metricas_das_Turmas_portatil.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Metricas-das-Turmas-Windows
+          path: |
+            dist_instalador/Instalador_Metricas_das_Turmas.exe
+            Metricas_das_Turmas_portatil.zip
+      - name: Publicar em Releases
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist_instalador/Instalador_Metricas_das_Turmas.exe
+            Metricas_das_Turmas_portatil.zip

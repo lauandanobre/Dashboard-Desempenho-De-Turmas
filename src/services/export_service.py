@@ -83,7 +83,7 @@ def export_workbook(sheets: dict[str, pd.DataFrame], dest: str | Path, source: s
 
 SUMMARY_LABELS = {
     "turma": "Turma", "area": "Área", "registros": "Registros", "media": "Média", "mediana": "Mediana",
-    "minimo": "Mínimo", "maximo": "Máximo", "desvio_padrao": "Desvio padrão",
+    "minimo": "Mínimo", "maximo": "Máximo", "desvio_padrao": "Desvio padrão", "erro_padrao": "Erro padrão",
     "media_geral_area": "Média geral da área", "diferenca_media_geral": "Dif. p/ média geral",
     "atencao": "Atenção", "motivo": "Motivo",
 }
@@ -92,7 +92,8 @@ SUMMARY_LABELS = {
 def display_summary(flagged: pd.DataFrame) -> pd.DataFrame:
     """Tabela do resumo com nomes de colunas em português e números arredondados."""
     out = flagged.copy()
-    for c in ("media", "mediana", "minimo", "maximo", "desvio_padrao", "media_geral_area", "diferenca_media_geral"):
+    for c in ("media", "mediana", "minimo", "maximo", "desvio_padrao", "erro_padrao", "media_geral_area",
+              "diferenca_media_geral"):
         if c in out:
             out[c] = out[c].round(2)
     if "atencao" in out:
@@ -100,10 +101,32 @@ def display_summary(flagged: pd.DataFrame) -> pd.DataFrame:
     return out.rename(columns=SUMMARY_LABELS)
 
 
+def _simple_table(df: pd.DataFrame) -> str:
+    e = html.escape
+    head = "".join(f"<th>{e(str(c))}</th>" for c in df.columns)
+    rows = "".join("<tr>" + "".join(f"<td>{e(_cell(v))}</td>" for v in r) + "</tr>" for r in df.itertuples(index=False))
+    return f'<table border="1" cellspacing="0" cellpadding="4" width="100%"><tr>{head}</tr>{rows}</table>'
+
+
 def build_report_html(flagged: pd.DataFrame, criteria: AttentionCriteria, stats: OverallStats,
-                      quality: QualityReport, file_name: str, generated_at: datetime | None = None) -> str:
+                      quality: QualityReport, file_name: str, generated_at: datetime | None = None,
+                      attendance: pd.DataFrame | None = None, hard_questions: pd.DataFrame | None = None) -> str:
     """Relatório agregado: não inclui ids nem dados individuais de alunos."""
     e = html.escape
+    extra = ""
+    if attendance is not None and not attendance.empty:
+        att = attendance.assign(presenca_pct=attendance["presenca_pct"].round(1)).rename(columns={
+            "turma": "Turma", "matriculados": "Alunos na lista", "presentes": "Presentes", "ausentes": "Ausentes",
+            "presenca_pct": "Presença (%)"})
+        extra += ("<h2>Presença</h2><p>As médias abaixo consideram somente alunos presentes "
+                  "(ausente não é nota zero).</p>" + _simple_table(att))
+    if hard_questions is not None and not hard_questions.empty:
+        hq = hard_questions.head(10)[["questao", "area", "gabarito", "taxa_erro", "alt_errada"]].rename(columns={
+            "questao": "Questão", "area": "Área", "gabarito": "Gabarito", "taxa_erro": "Erro (%)",
+            "alt_errada": "Errada mais marcada"})
+        hq["Erro (%)"] = hq["Erro (%)"].round(1)
+        extra += ("<h2>Questões com maior taxa de erro</h2><p>Taxas muito altas podem indicar questão difícil, "
+                  "erro de gabarito ou necessidade de anulação: vale revisar.</p>" + _simple_table(hq.fillna("—")))
     when = (generated_at or datetime.now()).strftime("%d/%m/%Y %H:%M")
     table = display_summary(flagged.drop(columns=["media_geral_area"], errors="ignore"))
     head = "".join(f"<th>{e(str(c))}</th>" for c in table.columns)
@@ -120,6 +143,7 @@ def build_report_html(flagged: pd.DataFrame, criteria: AttentionCriteria, stats:
 <h2>Visão geral</h2>
 <p>Turmas: {stats.n_turmas} · Registros analisados: {stats.n_records} · Valores válidos: {stats.n_values}<br>
 Média geral: {format_number(stats.mean)} · Maior média entre turmas: {e(str(stats.best_turma))} ({format_number(stats.best_mean)})</p>
+{extra}
 <h2>Resumo por turma e área</h2>
 <table border="1" cellspacing="0" cellpadding="4" width="100%"><tr>{head}</tr>{rows}</table>
 <h2>Turmas que necessitam de atenção</h2>

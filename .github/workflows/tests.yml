@@ -1,0 +1,21 @@
+name: Testes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Os testes nao usam a interface (Qt): instalamos so o necessario, para ser rapido.
+      - run: python -m pip install pandas openpyxl xlrd odfpy plotly pytest
+      - run: python -m pytest -q

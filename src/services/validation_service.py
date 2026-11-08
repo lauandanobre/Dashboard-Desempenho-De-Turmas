@@ -88,19 +88,44 @@ def _norm(text: str) -> str:
     return "".join(c for c in text if not unicodedata.combining(c)).lower().strip()
 
 
+norm_text = _norm       # nome público para outros módulos
+
+
+_COUNT_HINTS = ("respostas", "acertos", "erros", "qtd", "quant", "total de", "questoes", "nº", "n°")
+_PCT_HINTS = ("%", "pct", "percent", "nota", "media", "desempenho")
+_PRESENCE_HINTS = ("presente", "presenca", "frequencia", "compareceu")
+
+
+def _is_count_like(name: str) -> bool:
+    """'Acertos', 'Respostas'... são contagens (0–90), não notas em %: não devem virar coluna de análise."""
+    n = _norm(name)
+    return any(h in n for h in _COUNT_HINTS) and not any(h in n for h in _PCT_HINTS)
+
+
 def guess_mapping(df: pd.DataFrame) -> dict:
     """Sugestão inicial de colunas (o usuário sempre pode alterar)."""
-    kinds = classify_columns(df)
+    from src.services import schema
+
     cols = list(df.columns)
+    keys = {_norm(c).replace(" ", "_"): c for c in cols}
+    if set(schema.REQUIRED_COLUMNS) <= set(keys):          # planilha no padrão do projeto
+        return {"turma": keys["turma"], "id": keys["id_aluno"], "period": keys.get("simulado"),
+                "presence": keys["presente"],
+                "values": [keys[c] for c in schema.DEFAULT_VALUE_COLUMNS if c in keys],
+                "labels": {keys[c]: lab for c, lab in schema.AREA_LABELS.items() if c in keys}}
+
+    kinds = classify_columns(df)
     turma = next((c for c in cols if "turma" in _norm(c)), None)
     ident = next((c for c in cols if c != turma and (
         _norm(c) in {"id", "id aluno", "aluno"} or _norm(c).startswith("id") or "matric" in _norm(c))), None)
-    period = next((c for c in cols if c not in (turma, ident) and any(
+    presence = next((c for c in cols if c not in (turma, ident) and any(h in _norm(c) for h in _PRESENCE_HINTS)), None)
+    period = next((c for c in cols if c not in (turma, ident, presence) and any(
         k in _norm(c) for k in ("period", "avalia", "simulado", "data", "bimestre", "etapa", "prova", "mes"))), None)
     if turma is None:
-        turma = next((c for c in cols if c not in (ident, period) and kinds[c] == "categórica"), None)
-    values = [c for c in cols if c not in (turma, ident, period) and kinds[c] == "numérica"]
-    return {"turma": turma, "id": ident, "period": period, "values": values}
+        turma = next((c for c in cols if c not in (ident, period, presence) and kinds[c] == "categórica"), None)
+    values = [c for c in cols if c not in (turma, ident, period, presence)
+              and kinds[c] == "numérica" and not _is_count_like(c)]
+    return {"turma": turma, "id": ident, "period": period, "presence": presence, "values": values, "labels": {}}
 
 
 # ---------------------------------------------------------------- tratamento
@@ -120,10 +145,18 @@ def _period_label(value) -> str | None:
     return _clean_label(value)
 
 
+def _is_present(value) -> bool:
+    """Em branco ou desconhecido = presente (só 'NAO', 'AUSENTE'... excluem o aluno)."""
+    if is_missing(value):
+        return True
+    from src.services import schema
+    return _norm(value).upper() not in schema.ABSENT_TOKENS
+
+
 def _check_mapping(df: pd.DataFrame, m: ColumnMapping) -> None:
     if not m.value_columns:
         raise DataValidationError("Selecione ao menos uma coluna numérica para analisar.")
-    chosen = [m.turma, *m.value_columns] + [c for c in (m.id_column, m.period_column) if c]
+    chosen = [m.turma, *m.value_columns] + [c for c in (m.id_column, m.period_column, m.presence_column) if c]
     missing = [c for c in chosen if c not in df.columns]
     if missing:
         raise DataValidationError(f"Coluna(s) não encontrada(s) na planilha: {', '.join(missing)}.")
@@ -151,6 +184,22 @@ def build_clean_dataset(
         issues.append(QualityIssue("warning", f"{n} linha(s) sem turma foram excluídas da análise "
                                    "(não dá para atribuí-las a uma turma).", n))
 
+    labels = dict(mapping.area_labels)
+    present = pd.Series(True, index=df.index)
+    if mapping.presence_column:
+        present = df[mapping.presence_column].map(_is_present)
+    parsed_cols = {c: pd.to_numeric(df[c].map(parse_number), errors="coerce") for c in mapping.value_columns}
+    if config.zero_is_absent:
+        allv = pd.DataFrame(parsed_cols)
+        zero_row = allv.notna().any(axis=1) & (allv.fillna(0) == 0).all(axis=1)
+        present &= ~zero_row
+    active = has_turma & present                      # linhas que entram nas médias
+    n_absent = int((has_turma & ~present).sum())
+    if n_absent:
+        how = ("marcadas como ausentes" if mapping.presence_column else "com todas as notas iguais a 0 (tratadas como ausentes)")
+        issues.append(QualityIssue("info", f"{n_absent} linha(s) {how} ({n_absent / max(int(has_turma.sum()), 1):.0%} "
+                                   "do total) ficaram fora das médias. Ausente não é nota 0.", n_absent))
+
     blank = pd.Series([None] * rows_in, index=df.index, dtype=object)
     ids = df[mapping.id_column].map(_clean_label) if mapping.id_column else blank
     periods = df[mapping.period_column].map(_period_label) if mapping.period_column else blank
@@ -161,7 +210,7 @@ def build_clean_dataset(
     for col in mapping.value_columns:
         raw = df[col]
         missing = raw.map(is_missing)
-        parsed = pd.to_numeric(raw.map(parse_number), errors="coerce") * config.scale
+        parsed = parsed_cols[col] * config.scale
         invalid = ~missing & parsed.isna()
         lo, hi = config.min_value, config.max_value
         out_range = pd.Series(False, index=df.index)
@@ -169,27 +218,27 @@ def build_clean_dataset(
             out_range |= parsed < lo
         if hi is not None:
             out_range |= parsed > hi
-        valid = parsed.notna() & ~out_range & has_turma
-        values_in += int((~missing & has_turma).sum())
+        valid = parsed.notna() & ~out_range & active
+        values_in += int((~missing & active).sum())
 
-        if (n := int((missing & has_turma).sum())):
+        if (n := int((missing & active).sum())):
             issues.append(QualityIssue("info", f"'{col}': {n} célula(s) vazia(s) não entram nos cálculos.", n))
-        if (n := int((invalid & has_turma).sum())):
-            ex = ", ".join(f"'{v}'" for v in raw[invalid & has_turma].astype(str).str.strip().unique()[:3])
+        if (n := int((invalid & active).sum())):
+            ex = ", ".join(f"'{v}'" for v in raw[invalid & active].astype(str).str.strip().unique()[:3])
             issues.append(QualityIssue("warning", f"'{col}': {n} valor(es) não numérico(s) foram "
                                        f"ignorados (exemplos: {ex}).", n))
-        if (n := int((out_range & has_turma).sum())):
+        if (n := int((out_range & active).sum())):
             issues.append(QualityIssue("warning", f"'{col}': {n} valor(es) fora do intervalo "
                                        f"[{_fmt(lo)}; {_fmt(hi)}] foram ignorados.", n))
         piece = pd.DataFrame({"linha": linha, "turma": turma, "id": ids, "periodo": periods,
-                              "area": col, "valor": parsed}, index=df.index)
+                              "area": labels.get(col, col), "valor": parsed}, index=df.index)
         pieces.append(piece[valid])
 
     long = pd.concat(pieces) if pieces else pd.DataFrame()
     long = long.reset_index(drop=True)
 
     if mapping.id_column:
-        keys = pd.DataFrame({"t": turma, "i": ids, "p": periods})[has_turma & ids.notna()]
+        keys = pd.DataFrame({"t": turma, "i": ids, "p": periods})[active & ids.notna()]
         dup_rows = keys.index[keys.duplicated(keep="first")]
         if len(dup_rows):
             if config.remove_duplicate_ids:
@@ -199,7 +248,7 @@ def build_clean_dataset(
             else:
                 issues.append(QualityIssue("warning", f"{len(dup_rows)} linha(s) repetem o id dentro da mesma "
                                            "turma/período. Foram mantidas e podem inflar as contagens.", len(dup_rows)))
-        n = int((has_turma & ids.isna()).sum())
+        n = int((active & ids.isna()).sum())
         if n:
             issues.append(QualityIssue("info", f"{n} linha(s) sem id.", n))
     else:
@@ -219,7 +268,7 @@ def build_clean_dataset(
                                    "porcentagem, marque a opção de conversão na importação."))
 
     report = QualityReport(rows_in=rows_in, rows_analyzed=int(long["linha"].nunique()) if not long.empty else 0,
-                           values_in=values_in, values_used=len(long), issues=issues)
+                           values_in=values_in, values_used=len(long), n_absent=n_absent, issues=issues)
     if long.empty:
         long = pd.DataFrame({"linha": pd.Series(dtype=int), "turma": pd.Series(dtype=object),
                              "id": pd.Series(dtype=object), "periodo": pd.Series(dtype=object),

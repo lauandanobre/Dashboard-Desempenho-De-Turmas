@@ -18,7 +18,8 @@ from src.models.analysis_result import AttentionCriteria, Filters, OverallStats
 from src.utils.formatting import format_number
 from src.services.validation_service import parse_number
 
-SUMMARY_COLUMNS = ["registros", "media", "mediana", "minimo", "maximo", "desvio_padrao"]
+SUMMARY_COLUMNS = ["registros", "media", "mediana", "minimo", "maximo", "desvio_padrao", "erro_padrao"]
+Z95 = 1.96      # multiplicador da margem de erro de 95% (aproximação normal)
 
 
 def _natural_key(text) -> list:
@@ -46,7 +47,7 @@ def summarize(long: pd.DataFrame, by: tuple[str, ...] = ("turma", "area")) -> pd
         return pd.DataFrame(columns=cols + SUMMARY_COLUMNS)
     out = (long.groupby(cols, sort=False)["valor"]
            .agg(registros="count", media="mean", mediana="median",
-                minimo="min", maximo="max", desvio_padrao="std")
+                minimo="min", maximo="max", desvio_padrao="std", erro_padrao="sem")
            .reset_index())
     area_order = {a: i for i, a in enumerate(long["area"].unique())}
 
@@ -73,8 +74,13 @@ def describe_criteria(c: AttentionCriteria) -> str:
                      "média geral da mesma área")
     if c.absolute_minimum is not None:
         parts.append(f"média da turma abaixo de {format_number(c.absolute_minimum)}")
-    return ("Turma sinalizada quando: " + " OU ".join(parts) + ".") if parts else \
-        "Nenhum critério de atenção ativo: nenhuma turma é sinalizada."
+    if not parts:
+        return "Nenhum critério de atenção ativo: nenhuma turma é sinalizada."
+    text = "Turma sinalizada quando: " + " OU ".join(parts) + "."
+    text += f" Turmas com menos de {c.min_records} registros não são avaliadas (amostra pequena)."
+    if c.require_significance:
+        text += " A diferença precisa superar a margem de erro de 95% (±1,96 × erro padrão)."
+    return text
 
 
 def flag_attention(long: pd.DataFrame, criteria: AttentionCriteria) -> pd.DataFrame:
@@ -84,17 +90,38 @@ def flag_attention(long: pd.DataFrame, criteria: AttentionCriteria) -> pd.DataFr
     s["diferenca_media_geral"] = s["media"] - s["media_geral_area"]
     flags, reasons = [], []
     for row in s.itertuples():
-        r = []
+        if row.registros < criteria.min_records:
+            flags.append(False)
+            reasons.append(f"Amostra pequena (n={row.registros}; mínimo {criteria.min_records}): não avaliada.")
+            continue
+        r, notes = [], []
         d = round(float(row.diferenca_media_geral), 6)
+        margin = Z95 * row.erro_padrao if pd.notna(row.erro_padrao) else None
         if criteria.below_overall_by is not None and d <= -criteria.below_overall_by:
-            r.append(f"{format_number(abs(d))} ponto(s) abaixo da média geral de {row.area}")
+            if criteria.require_significance and (margin is None or abs(d) <= margin):
+                notes.append(f"{format_number(abs(d))} ponto(s) abaixo da média geral de {row.area}, mas dentro da "
+                             f"margem de erro (±{format_number(margin) if margin is not None else '—'})")
+            else:
+                r.append(f"{format_number(abs(d))} ponto(s) abaixo da média geral de {row.area}")
         if criteria.absolute_minimum is not None and row.media < criteria.absolute_minimum:
             r.append(f"média {format_number(row.media)} abaixo do mínimo {format_number(criteria.absolute_minimum)}")
         flags.append(bool(r))
-        reasons.append("; ".join(r))
+        reasons.append("; ".join(r) if r else ("Não sinalizada: " + "; ".join(notes) if notes else ""))
     s["atencao"] = flags
     s["motivo"] = reasons
     return s
+
+
+def attendance_table(alunos: pd.DataFrame) -> pd.DataFrame:
+    """Matriculados (linhas), presentes, ausentes e % de presença por turma."""
+    if alunos is None or alunos.empty:
+        return pd.DataFrame(columns=["turma", "matriculados", "presentes", "ausentes", "presenca_pct"])
+    g = alunos.groupby("turma", sort=False)
+    out = pd.DataFrame({"matriculados": g.size(), "presentes": g["presente"].apply(lambda x: int((x == "SIM").sum()))})
+    out["ausentes"] = out["matriculados"] - out["presentes"]
+    out["presenca_pct"] = out["presentes"] / out["matriculados"] * 100
+    out = out.reset_index()
+    return out.iloc[sorted(range(len(out)), key=lambda i: _natural_key(out["turma"].iat[i]))].reset_index(drop=True)
 
 
 def pairwise_differences(long: pd.DataFrame, area: str | None = None) -> pd.DataFrame:

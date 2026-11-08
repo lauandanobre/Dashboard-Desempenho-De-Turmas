@@ -218,3 +218,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Dados reais de alunos (nunca versionar)
+dados_reais/
+*.pdf
+*.xlsx
+!assets/*.xlsx
+!tests/**/*.xlsx
+
+# Executavel / instalador
+!MetricasTurmas.spec
+dist_instalador/

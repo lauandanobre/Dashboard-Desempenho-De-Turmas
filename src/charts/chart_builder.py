@@ -42,13 +42,19 @@ def _label(unit: str) -> str:
 
 def bar_means(summary: pd.DataFrame, overall_by_area: dict[str, float], value_range: ValueRange = None,
               unit: str = "%") -> go.Figure:
-    """Barras com a média de cada turma (agrupadas por área quando há mais de uma)."""
+    """Barras com a média de cada turma (agrupadas por área quando há mais de uma).
+
+    As barras de erro mostram a margem de erro de 95% da média (±1,96 × erro padrão): quando duas
+    turmas têm barras que se sobrepõem, a diferença entre elas pode ser só acaso.
+    """
     fig = go.Figure()
     areas = list(dict.fromkeys(summary["area"]))
     for area in areas:
         sub = summary[summary["area"] == area]
+        err = (1.96 * sub["erro_padrao"]).fillna(0) if "erro_padrao" in sub else None
         fig.add_bar(
             x=sub["turma"], y=sub["media"], name=str(area),
+            error_y=dict(type="data", array=err, thickness=1.2, color="#4A5563") if err is not None else None,
             text=[format_number(v) for v in sub["media"]], textposition="auto",
             customdata=sub[["registros", "minimo", "maximo"]].to_numpy(),
             hovertemplate="<b>%{x}</b><br>Média: %{y:.1f}<br>Registros: %{customdata[0]}"
@@ -58,7 +64,7 @@ def bar_means(summary: pd.DataFrame, overall_by_area: dict[str, float], value_ra
         fig.add_hline(y=overall_by_area[areas[0]], line=dict(color="#7B7F86", dash="dash", width=1),
                       annotation_text=f"Média geral: {format_number(overall_by_area[areas[0]])}",
                       annotation_position="top left")
-    title = "Média por turma" + (f" — {areas[0]}" if len(areas) == 1 else "")
+    title = "Média por turma" + (f" — {areas[0]}" if len(areas) == 1 else "") + " (barras de erro: IC 95%)"
     fig.update_layout(barmode="group", showlegend=len(areas) > 1)
     return _layout(fig, title, "Turma", _label(unit), value_range)
 
@@ -112,6 +118,35 @@ def evolution(long: pd.DataFrame, value_range: ValueRange = None, unit: str = "%
         fig.add_scatter(x=periods, y=means.to_numpy(), mode="lines+markers", name=name, connectgaps=False)
     fig.update_xaxes(categoryorder="array", categoryarray=periods, type="category")
     return _layout(fig, "Evolução da média por período", "Período / avaliação", _label(unit), value_range)
+
+
+def attendance(att: pd.DataFrame) -> go.Figure:
+    """Presentes x ausentes por turma (ausente não é nota zero: aqui ele aparece como presença)."""
+    fig = go.Figure()
+    fig.add_bar(x=att["turma"], y=att["presentes"], name="Presentes", marker_color=PALETTE[2],
+                text=[f"{int(p)} ({v:.0f}%)" for p, v in zip(att["presentes"], att["presenca_pct"])], textposition="inside")
+    fig.add_bar(x=att["turma"], y=att["ausentes"], name="Ausentes", marker_color="#B8BEC8",
+                text=[int(a) for a in att["ausentes"]], textposition="inside")
+    fig.update_layout(barmode="stack")
+    return _layout(fig, "Presença por turma", "Turma", "Alunos", y_is_value=False)
+
+
+def question_ranking(stats: pd.DataFrame, top: int = 15) -> go.Figure:
+    """Questões com maior taxa de erro. Passe o mouse para ver o gabarito e a alternativa errada mais marcada."""
+    top_df = stats.sort_values("taxa_erro", ascending=False).head(top).iloc[::-1]
+    labels = [f"Q{int(q)} · {a}" for q, a in zip(top_df["questao"], top_df["area"])]
+    custom = top_df[["gabarito", "alt_errada", "alt_errada_pct", "erros", "base"]].astype(object).where(
+        top_df[["gabarito", "alt_errada", "alt_errada_pct", "erros", "base"]].notna(), "—").to_numpy()
+    fig = go.Figure(go.Bar(
+        x=top_df["taxa_erro"], y=labels, orientation="h", marker_color=PALETTE[5],
+        text=[f"{v:.0f}%" for v in top_df["taxa_erro"]], textposition="auto", customdata=custom,
+        hovertemplate="<b>%{y}</b><br>Erraram: %{x:.1f}% (%{customdata[3]} de %{customdata[4]})"
+                      "<br>Gabarito: %{customdata[0]}<br>Errada mais marcada: %{customdata[1]}<extra></extra>"))
+    fig.update_xaxes(range=[0, 100])
+    fig.update_layout(showlegend=False, height=max(380, 28 * len(top_df) + 140))
+    base = int(top_df["base"].iloc[0]) if len(top_df) else 0
+    return _layout(fig, f"Questões mais erradas (base: {base} alunos com lista completa)", "Taxa de erro (%)", None,
+                   y_is_value=False)
 
 
 # ------------------------------------------------------------- saída em HTML
